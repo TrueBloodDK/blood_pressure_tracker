@@ -1,0 +1,36 @@
+{% extends 'base.html' %}
+
+{% block title %}Статистика{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Статистика давления</h2>
+    <form method="get">
+        <select name="period" style="padding:10px; font-size:16px; border-radius:4px;">
+            <option value="day" {% if period == 'day' %}selected{% endif %}>За сутки</option>
+            <option value="month" {% if period == 'month' %}selected{% endif %}>За месяц</option>
+        </select>
+        <button type="submit" style="width:auto; padding: 10px 20px;">Показать</button>
+    </form>
+</div>
+
+{% if stats %}
+<div class="card">
+    <h3>Результаты за {{ period|yesno:"сутки,месяц" }}</h3>
+    <p>Записей: <strong>{{ stats.records_count }}</strong></p>
+
+    <h4>Верхнее давление</h4>
+    <p>Среднее: <strong>{{ stats.systolic.avg }}</strong> | Мин: <strong>{{ stats.systolic.min }}</strong> | Макс: <strong>{{ stats.systolic.max }}</strong></p>
+
+    <h4>Нижнее давление</h4>
+    <p>Среднее: <strong>{{ stats.diastolic.avg }}</strong> | Мин: <strong>{{ stats.diastolic.min }}</strong> | Макс: <strong>{{ stats.diastolic.max }}</strong></p>
+
+    <h4>Пульс</h4>
+    <p>Среднее: <strong>{{ stats.pulse.avg }}</strong> | Мин: <strong>{{ stats.pulse.min }}</strong> | Макс: <strong>{{ stats.pulse.max }}</strong></p>
+</div>
+{% elif period %}
+    <div class="card">
+        <p>За этот период записей нет.</p>
+    </div>
+{% endif %}
+{% endblock %}

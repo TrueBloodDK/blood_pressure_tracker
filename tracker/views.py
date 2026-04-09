@@ -1,12 +1,20 @@
-from django.shortcuts import render
+from django.shortcuts import render, redirect 
+
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required
+
 from rest_framework import generics, status
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+
 from django.utils import timezone
+
 from datetime import timedelta
+
 from .models import PressureRecord
 from .serializers import PressureRecordSerializer
+
 
 
 class PressureRecordCreateView(generics.CreateAPIView):
@@ -89,3 +97,105 @@ class PressureStatisticsView(APIView):
         }
 
         return Response(stats)
+
+
+def login_view(request):
+    if request.user.is_authenticated:
+        return redirect('dashboard')
+
+    error = None
+    if request.method == 'POST':
+        username = request.POST.get('username')
+        password = request.POST.get('password')
+        user = authenticate(request, username=username, password=password)
+        if user:
+            login(request, user)
+            return redirect('dashboard')
+        else:
+            error = 'Неверный логин или пароль'
+
+    return render(request, 'tracker/login.html', {'error': error})
+
+
+def logout_view(request):
+    logout(request)
+    return redirect('login')
+
+
+@login_required(login_url='login')
+def dashboard_view(request):
+    success = None
+    error = None
+
+    if request.method == 'POST':
+        try:
+            systolic = int(request.POST.get('systolic'))
+            diastolic = int(request.POST.get('diastolic'))
+            pulse = int(request.POST.get('pulse'))
+
+            PressureRecord.objects.create(
+                user=request.user,
+                systolic=systolic,
+                diastolic=diastolic,
+                pulse=pulse
+            )
+            success = 'Запись успешно сохранена!'
+        except Exception as e:
+            error = 'Ошибка при сохранении записи.'
+
+    latest = PressureRecord.objects.filter(user=request.user).first()
+
+    return render(request, 'tracker/dashboard.html', {
+        'latest': latest,
+        'success': success,
+        'error': error,
+    })
+
+
+@login_required(login_url='login')
+def statistics_view(request):
+    period = request.GET.get('period')
+    stats = None
+
+    if period:
+        if period == 'day':
+            since = timezone.now() - timedelta(days=1)
+        elif period == 'month':
+            since = timezone.now() - timedelta(days=30)
+        else:
+            period = None
+
+        if period:
+            records = PressureRecord.objects.filter(
+                user=request.user,
+                created_at__gte=since
+            )
+
+            if records.exists():
+                systolic_values = list(records.values_list('systolic', flat=True))
+                diastolic_values = list(records.values_list('diastolic', flat=True))
+                pulse_values = list(records.values_list('pulse', flat=True))
+
+                stats = {
+                    'records_count': records.count(),
+                    'systolic': {
+                        'avg': round(sum(systolic_values) / len(systolic_values), 1),
+                        'min': min(systolic_values),
+                        'max': max(systolic_values),
+                    },
+                    'diastolic': {
+                        'avg': round(sum(diastolic_values) / len(diastolic_values), 1),
+                        'min': min(diastolic_values),
+                        'max': max(diastolic_values),
+                    },
+                    'pulse': {
+                        'avg': round(sum(pulse_values) / len(pulse_values), 1),
+                        'min': min(pulse_values),
+                        'max': max(pulse_values),
+                    },
+                }
+
+    return render(request, 'tracker/statistics.html', {
+        'stats': stats,
+        'period': period,
+    })
