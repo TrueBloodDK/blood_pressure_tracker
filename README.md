@@ -62,10 +62,6 @@ python manage.py createsuperuser
 python manage.py runserver
 ```
 
-### 9. Создать суперпользователя
-```bash
-python manage.py createsuperuser
-```
 ## Использование
 ### Веб-интерфейс
 В графическом виде можно начать работу просто перейдя на корневой энпдоинт: `http://127.0.0.1:8000
